@@ -16,6 +16,7 @@
 // limitations under the License.
 
 import Foundation
+import CommonCrypto
 
 /**
 Encapsulates data for actual token generation.
