@@ -102,18 +102,31 @@ open class OTPGenerator: OTPGeneratorProtocol {
 
         let hashPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: Int(self.algorithm.hashLength))
         defer { hashPtr.deallocate() }
-
-        self.secretKey.withUnsafeBytes { secretBytes in
-            counterData.withUnsafeBytes { counterBytes in
-                CCHmac(algorithm, secretBytes, self.secretKey.count, counterBytes, counterData.count, hashPtr)
+        
+        self.secretKey.withUnsafeBytes { secretBytes -> Void in
+            counterData.withUnsafeBytes { counterBytes -> Void in
+                CCHmac(algorithm,
+                       secretBytes.baseAddress,
+                       self.secretKey.count,
+                       counterBytes.baseAddress,
+                       counterData.count,
+                       hashPtr)
             }
         }
 
         let hash = Data(bytes: hashPtr, count: Int(self.algorithm.hashLength))
-        var truncatedHash = hash.withUnsafeBytes { (ptr: UnsafePointer<UInt8>) -> UInt32 in
+        var truncatedHash = hash.withUnsafeBytes { ptr -> UInt32 in
             let offset = ptr[hash.count - 1] & 0x0f
+            
+            guard let ptr = ptr.baseAddress else {
+                return UInt32()
+            }
+            
             let truncatedHashPtr = ptr + Int(offset)
-            return truncatedHashPtr.withMemoryRebound(to: UInt32.self, capacity: 1) {
+            
+            return truncatedHashPtr
+                .assumingMemoryBound(to: UInt32.self)
+                .withMemoryRebound(to: UInt32.self, capacity: 1) {
                 $0.pointee
             }
         }
